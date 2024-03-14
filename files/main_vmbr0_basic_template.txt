@@ -29,6 +29,7 @@ iface vmbr0 inet static
     bridge-vids 2-4094
     hwaddress #MAIN_MAC_ADDR#
     pointopoint #MAIN_IPV4_GW#
+    dns-nameservers 185.12.64.1 185.12.64.2
     up sysctl -p
 
 iface vmbr0 inet6 static
