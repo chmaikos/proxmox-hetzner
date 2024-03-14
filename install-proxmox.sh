@@ -176,7 +176,9 @@ done
 
 # Running QEMU
 echo "$qemu_command"
-eval "$qemu_command"
+eval "$qemu_command &"
+
+local bg_pid=$!
 
 # Performing SSH operations
 if [ ! -f /root/.ssh/id_rsa ]; then
@@ -186,7 +188,7 @@ apt install sshpass
 
 
 
-# Wywołanie funkcji
+echo "Waiting for start SSH server on proxmox..."
 check_ssh_server || echo "Fatal: Proxmox may not have started properly because SSH on socket 127.0.0.1:5555 is not working."
 
 
@@ -207,3 +209,5 @@ change_ssh_port
 add_ssh_key_to_authorized_keys "$ssh_key"
 
 ssh 127.0.0.1 -p 5555 -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'
+
+kill $bg_pid
