@@ -37,7 +37,7 @@ change_ssh_port() {
     fi
 }
 
-set_network {
+set_network() {
     curl -L "https://github.com/WMP/proxmox-hetzner/raw/main/files/main_vmbr0_basic_template.txt" -o ~/interfaces_sample
     IFACE_NAME="$(udevadm info -e | grep -m1 -A 20 ^P.*eth0 | grep ID_NET_NAME_ONBOARD | cut -d'=' -f2)"
     MAIN_IPV4_CIDR="$(ip address show ${IFACE_NAME} | grep global | grep "inet "| xargs | cut -d" " -f2)"
@@ -79,6 +79,22 @@ download_latest_proxmox_iso() {
     else
         echo "Error downloading the ISO image."
     fi
+}
+
+# Function to check if SSH server is up with a timeout of 60 seconds
+check_ssh_server() {
+    local server="127.0.0.1"
+    local port="5555"
+    local timeout=60
+    local end_time=$((SECONDS + timeout))
+
+    while [ $SECONDS -lt $end_time ]; do
+        if nc -z "$server" "$port" </dev/null; then
+            return 0
+        fi
+        sleep 1
+    done
+    return 1
 }
 
 # Call the function to download the latest Proxmox ISO
@@ -126,7 +142,10 @@ if [ ! -n "$vnc_password" ]; then
     # Generate random VNC password
     vnc_password=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
 fi
+echo
 echo "Connecto to VNC on port :5900 with password: $vnc_password"
+echo "If VNC stuck before open installator try to reconnect VNC client"
+echo
 
 # Detecting EFI/UEFI system
 if [ -d "/sys/firmware/efi" ]; then
@@ -141,7 +160,7 @@ while read -r line; do
 done < <(lsblk -o NAME -d -n -p | grep -v 'loop')
 
 # Building QEMU command with detected hard disks
-qemu_command="printf "change vnc password\n%s\n" $vnc_password | qemu-system-x86_64 -machine pc-q35-5.2 -enable-kvm $bios -cpu host -smp 4 -m 4096 -boot d -cdrom $latest_iso_name -vnc :0,password -monitor stdio -no-reboot"
+qemu_command="printf \"change vnc password\n%s\n\" $vnc_password | qemu-system-x86_64 -machine pc-q35-5.2 -enable-kvm $bios -cpu host -smp 4 -m 4096 -boot d -cdrom $latest_iso_name -vnc :0,password -monitor stdio -no-reboot"
 for disk in "${hard_disks[@]}"; do
     qemu_command+=" -drive file=$disk,format=raw,media=disk,if=virtio"
 done
@@ -155,13 +174,22 @@ for disk in "${hard_disks[@]}"; do
     qemu_command+=" -drive file=$disk,format=raw,media=disk,if=virtio"
 done
 
+# Running QEMU
+echo "$qemu_command"
+eval "$qemu_command"
+
 # Performing SSH operations
 if [ ! -f /root/.ssh/id_rsa ]; then
     ssh-keygen -b 2048 -t rsa -f /root/.ssh/id_rsa -q -N ""
 fi
 apt install sshpass
 
-sleep 10
+
+
+# Wywołanie funkcji
+check_ssh_server || echo "Fatal: Proxmox may not have started properly because SSH on socket 127.0.0.1:5555 is not working."
+
+
 sshpass -p $password ssh-copy-id -p 5555 root@127.0.0.1
 
 ssh 127.0.0.1 -p 5555 -o StrictHostKeyChecking=no -C exit
