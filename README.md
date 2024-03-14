@@ -8,45 +8,6 @@
 ![](https://img.shields.io/github/watchers/ariadata/proxmox-hetzner.svg)
 ![](https://img.shields.io/github/forks/ariadata/proxmox-hetzner.svg)
 ---
-### Assume that our servers info is :
-* My Interface name : `enp7s0`
-```shell
-# run this command to get your interface name
-(udevadm info -e | grep -m1 -A 20 ^P.*eth0 | grep ID_NET_NAME_PATH | cut -d'=' -f2)
-```
-
-* Main IP4 and Netmask : `148.251.235.75/27`
-```shell
-# run this command to get your main IP4 and Netmask
-(ip address show "$(udevadm info -e | grep -m1 -A 20 ^P.*eth0 | grep ID_NET_NAME_PATH | cut -d'=' -f2)" | grep global | grep "inet "| xargs | cut -d" " -f2)
-```
-
-* Main IP4 Gateway : `148.251.235.65`
-```shell
-# run this command to get your main IP4 Gateway
-(ip route | grep default | xargs | cut -d" " -f3)
-```
-
-* MAC address : `a8:a1:59:55:3b:43`
-```shell
-# run this command to get your MAC address
-(ifconfig eth0 | grep -o -E '([[:xdigit:]]{1,2}:){5}[[:xdigit:]]{1,2}')
-```
-
-* IPv6 CIDR : `2a01:4f8:201:3315::2/64`
-```shell
-# run this command to get your IPv6 CIDR
-(ip address show "$(udevadm info -e | grep -m1 -A 20 ^P.*eth0 | grep ID_NET_NAME_PATH | cut -d'=' -f2)" | grep global | grep "inet6 "| xargs | cut -d" " -f2)
-```
-
-* Public Subnet CIDR: `46.40.125.209/28`
-```shell
-# Get this from robot (hetzner)
-```
-
-* My private subnet : `192.168.20.0/24` with gateway `192.168.20.1` (choose your own subnet)
-
----
 
 ### Prepare the rescue from hetzner robot manager
 * Select the Rescue tab for the specific server, via the hetzner robot manager
@@ -62,17 +23,10 @@
 
 #### Install requirements and Install Proxmox:
 ```shell
-apt -y install ovmf wget 
-wget -O pve.iso http://download.proxmox.com/iso/proxmox-ve_7.3-1.iso
+wget https://github.com/WMP/proxmox-hetzner/raw/main/install-proxmox.sh
+bash install-proxmox.sh
 ```
-* For initial proxmox installer via `VNC` :
-```shell
-#### If UEFI Supported
-printf "change vnc password\n%s\n" "abcd_123456" | qemu-system-x86_64 -enable-kvm -bios /usr/share/ovmf/OVMF.fd -cpu host -smp 4 -m 4096 -boot d -cdrom ./pve.iso -drive file=/dev/nvme0n1,format=raw,media=disk,if=virtio -drive file=/dev/nvme1n1,format=raw,media=disk,if=virtio -vnc :0,password -monitor stdio -no-reboot
 
-#### If UEFI NOT Supported
-printf "change vnc password\n%s\n" "abcd_123456" | qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 4096 -boot d -cdrom ./pve.iso -drive file=/dev/nvme0n1,format=raw,media=disk,if=virtio -drive file=/dev/nvme1n1,format=raw,media=disk,if=virtio -vnc :0,password -monitor stdio -no-reboot
-```
 * Connect with `VNC client` to `148.251.235.75` with password `abcd_123456`
 
 * Install Proxmox and attention to these :
@@ -81,16 +35,6 @@ printf "change vnc password\n%s\n" "abcd_123456" | qemu-system-x86_64 -enable-kv
   * do not add real IP info in network configuration part (just leave defaults!)
   * close VNC window after system rebooted and waits for reconnect
 
-
-* Run this command to bring up new installed proxmox in port `5555`
-```shell
-#### If UEFI Supported
-qemu-system-x86_64 -enable-kvm -bios /usr/share/ovmf/OVMF.fd -cpu host -device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 -smp 4 -m 4096 -drive file=/dev/nvme0n1,format=raw,media=disk,if=virtio -drive file=/dev/nvme1n1,format=raw,media=disk,if=virtio
-
-#### If UEFI NOT Supported
-qemu-system-x86_64 -enable-kvm -cpu host -device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 -smp 4 -m 4096 -drive file=/dev/nvme0n1,format=raw,media=disk,if=virtio -drive file=/dev/nvme1n1,format=raw,media=disk,if=virtio
-```
-* Login via SSH or ([WinSCP](https://winscp.net/eng/download.php)) To `148.251.235.75` with port `5555` with password that you entered during install.
 
 #### Edit `/etc/network/interfaces` file due to your requirements : 
 * Use this template for basic interface. (**change parameters manually**)
