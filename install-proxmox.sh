@@ -182,7 +182,6 @@ disable_rpcbind() {
 
 install_iptables_rule() {
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
-        apt-get update &&
         echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections &&
         echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections &&
         apt-get install -y iptables-persistent &&
