@@ -412,6 +412,6 @@ done
 # Shut down the virtual machine if --no-shutdown option is not used
 if [ "$no_shutdown" = false ]; then
     echo "Shutting down the virtual machine..."
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "poweroff"
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "poweroff" 2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 fi
 
