@@ -397,6 +397,8 @@ echo "Waiting for start SSH server on proxmox..."
 check_ssh_server || echo "Fatal: Proxmox may not have started properly because SSH on socket 127.0.0.1:5555 is not working."
 echo
 echo "Please enter the password for the root user that you set during the Proxmox installation."
+echo "Remember not to select the reboot option in the 'run_tteck_post-pve-install' plugin!"
+echo
 
 ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -C exit  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
