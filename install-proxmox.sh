@@ -317,25 +317,32 @@ fi
 
 
 
+# Array to store disk information as text
 hard_disks_text=()
+
+# Read disk information using lsblk and store it in the array
 while read -r line; do
     hard_disks_text+=("$line")
 done < <(lsblk -o NAME,SIZE,SERIAL,VENDOR,MODEL,PARTTYPE -d -n -p | grep -v 'loop')
 
-device_path="/dev/vd"
-counter=97  
+# Add a column with device path /dev/vd*
+device_path="/dev/v"
+counter=97  # ASCII code for 'a'
 for ((i = 0; i < ${#hard_disks_text[@]}; i++)); do
-    if (( $counter > 122 )); then  
-        echo "Zbyt wiele dysków do przypisania"
+    if (( $counter > 122 )); then  # If ASCII code exceeds 'z'
+        echo "Too many disks to assign"
         break
     fi
-    hard_disks_text[$i]="${hard_disks_text[$i]} $device_path$(printf "\x$(printf %x $counter))"
+    # Append device path to each disk entry
+    hard_disks_text[$i]="${hard_disks_text[$i]} $device_path$(printf "\x$(printf %x $counter)"))"
     ((counter++))
 done
 
+# Display the list of disks with the added device path
 for disk_info in "${hard_disks_text[@]}"; do
     echo "$disk_info"
 done
+
 
 
 hard_disks=()
