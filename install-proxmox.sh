@@ -10,6 +10,7 @@ show_help() {
     echo "  -P, --port PORT               Change default SSH port"
     echo "  -k, --ssh-key SSH_KEY         Add SSH public key to authorized_keys"
     echo "  -e, --acme-email EMAIL        Set email for ACME account"
+    echo "  --skip-installer              Skip Proxmox installer and boot directly from installed disks"
     echo "  --disable PLUGIN1,PLUGIN2     Disable specified plugins"
     echo "  -h, --help                    Show this help message and exit"
     echo ""
@@ -32,7 +33,7 @@ describe_plugin() {
             echo "Update locale settings with your ssh_client LC_NAME: ${LC_NAME}"
             ;;
         "register_acme_account")
-            echo "Get Let's Encrypt certificate for hostname set in Proxmox installer"
+            echo "Get Let's Encrypt certificate for hostname set in Proxmox installer. Cert ordering is after reboot"
             ;;
         "disable_rpcbind")
             echo "Disable rpcbind service"
@@ -112,6 +113,10 @@ while [[ $# -gt 0 ]]; do
             shift
             shift
             ;;
+        --skip-installer)
+            skip_installer=true
+            shift
+            ;;
         --disable)
             disabled_plugins="$2"
             IFS=',' read -ra plugins_to_disable <<< "$disabled_plugins"
@@ -133,7 +138,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-
+public_ipv4=$(ip -f inet addr show eth0 | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')
 
 
 
@@ -299,7 +304,7 @@ if [ ! -n "$vnc_password" ]; then
     vnc_password=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
 fi
 echo
-echo "Connecto to VNC on port :5900 with password: $vnc_password"
+echo "Connecto to vnc://$public_ipv4:5900 with password: $vnc_password"
 echo "If VNC stuck before open installator, try to reconnect VNC client"
 echo
 
@@ -310,20 +315,47 @@ else
     bios=""
 fi
 
+
+
+hard_disks_text=()
+while read -r line; do
+    hard_disks_text+=("$line")
+done < <(lsblk -o NAME,SIZE,SERIAL,VENDOR,MODEL,PARTTYPE -d -n -p | grep -v 'loop')
+
+device_path="/dev/vd"
+counter=97  
+for ((i = 0; i < ${#hard_disks_text[@]}; i++)); do
+    if (( $counter > 122 )); then  
+        echo "Zbyt wiele dysków do przypisania"
+        break
+    fi
+    hard_disks_text[$i]="${hard_disks_text[$i]} $device_path$(printf "\x$(printf %x $counter))"
+    ((counter++))
+done
+
+for disk_info in "${hard_disks_text[@]}"; do
+    echo "$disk_info"
+done
+
+
 hard_disks=()
 while read -r line; do
     hard_disks+=("$line")
 done < <(lsblk -o NAME -d -n -p | grep -v 'loop')
 
-# Building QEMU command with detected hard disks
-qemu_command="printf \"change vnc password\n%s\n\" $vnc_password | qemu-system-x86_64 -machine pc-q35-5.2 -enable-kvm $bios -cpu host -smp 4 -m 4096 -boot d -cdrom $latest_iso_name -vnc :0,password -monitor stdio -no-reboot"
-for disk in "${hard_disks[@]}"; do
-    qemu_command+=" -drive file=$disk,format=raw,media=disk,if=virtio"
-done
+if [ ! -n "$skip_installer" ]; then
+    # Building QEMU command with detected hard disks
+    qemu_command="printf \"change vnc password\n%s\n\" $vnc_password | qemu-system-x86_64 -machine pc-q35-5.2 -enable-kvm $bios -cpu host -smp 4 -m 4096 -boot d -cdrom $latest_iso_name -vnc :0,password -monitor stdio -no-reboot"
+    for disk in "${hard_disks[@]}"; do
+        qemu_command+=" -drive file=$disk,format=raw,media=disk,if=virtio"
+    done
 
-# Running QEMU
-# echo "$qemu_command"
-eval "$qemu_command > /dev/null 2>&1"
+    # Running QEMU
+    # echo "$qemu_command"
+    eval "$qemu_command > /dev/null 2>&1"
+fi
+
+
 
 qemu_command="qemu-system-x86_64 -machine pc-q35-5.2 -enable-kvm $bios -cpu host -device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 -smp 4 -m 4096"
 for disk in "${hard_disks[@]}"; do
