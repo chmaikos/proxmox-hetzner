@@ -90,7 +90,7 @@ run_plugin() {
 }
 
 # Default list of plugins
-plugin_list="update_locale_gen,run_tteck_post-pve-install,set_network,register_acme_account,disable_rpcbind,install_iptables_rule,add_ssh_key_to_authorized_keys,change_ssh_port"
+plugin_list="update_locale_gen,set_network,run_tteck_post-pve-install,register_acme_account,disable_rpcbind,install_iptables_rule,add_ssh_key_to_authorized_keys,change_ssh_port"
 
 # Parsing command line options
 while [[ $# -gt 0 ]]; do
