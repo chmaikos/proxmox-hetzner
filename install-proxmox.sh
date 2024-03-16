@@ -255,7 +255,7 @@ check_ssh_server || echo "Fatal: Proxmox may not have started properly because S
 ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1  2>&1  | grep -v 'Warning: Permanently added '
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -C exit  2>&1  | grep -v 'Warning: Permanently added '
 
-ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'  2>&1  | grep -v 'Warning: Permanently added '
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'
 
 set_network
 update_locale_gen
