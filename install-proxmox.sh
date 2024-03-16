@@ -54,11 +54,11 @@ add_ssh_key_to_authorized_keys() {
     if [ -n "$ssh_key" ]; then
         if [ -f "$ssh_key" ]; then
             # Copy SSH key to local host via scp
-            ssh-copy-id -i "$ssh_key"  -p 5555 root@127.0.0.1 
+            ssh-copy-id  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$ssh_key"  -p 5555 root@127.0.0.1 
             echo "Added SSH public key to authorized_keys"
 
             # Disable password authentication for SSH
-            ssh -p 5555 root@127.0.0.1 "sed -i 's/^PasswordAuthentication yes$/PasswordAuthentication no/' /etc/ssh/sshd_config"
+            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "sed -i 's/^PasswordAuthentication yes$/PasswordAuthentication no/' /etc/ssh/sshd_config"
             echo "Password authentication disabled for SSH"
         else
             echo "Error: File '$ssh_key' does not exist."
@@ -69,18 +69,18 @@ add_ssh_key_to_authorized_keys() {
 
 change_ssh_port() {
     if [ -n "$ssh_port" ]; then
-        ssh -p 5555 root@127.0.0.1 "sed -i 's/^#Port.*$/Port $ssh_port/' /etc/ssh/sshd_config"
+        ssh  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "sed -i 's/^#Port.*$/Port $ssh_port/' /etc/ssh/sshd_config"
         echo "SSH port changed to $ssh_port on proxmox server."
     fi
 }
 
 disable_rpcbind() {
-    ssh -p 5555 root@127.0.0.1 "systemctl disable --now rpcbind rpcbind.socket"
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "systemctl disable --now rpcbind rpcbind.socket"
     echo "rpcbind disabled on proxmox server."
 }
 
 install_iptables_rule() {
-    ssh -p 5555 127.0.0.1 "
+    ssh  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
         apt-get update &&
         apt-get install -y iptables-persistent &&
         iptables -I INPUT -d vmbr0 -p tcp -m tcp --dport 3128 -j DROP &&
@@ -104,8 +104,8 @@ set_network() {
     sed -i "s|#MAIN_MAC_ADDR#|$MAIN_MAC_ADDR|g" ~/interfaces_sample
     sed -i "s|#MAIN_IPV6_CIDR#|$MAIN_IPV6_CIDR|g" ~/interfaces_sample
 
-    scp -P 5555 ~/interfaces_sample root@127.0.0.1:/etc/network/interfaces
-    ssh -p 5555 127.0.0.1 "printf 'nameserver 185.12.64.1\nnameserver  185.12.64.2\n' > /etc/resolv.conf"
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 ~/interfaces_sample root@127.0.0.1:/etc/network/interfaces
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 185.12.64.1\nnameserver  185.12.64.2\n' > /etc/resolv.conf"
 }
 
 # Function to download the latest Proxmox ISO if not already downloaded
@@ -186,7 +186,7 @@ done
 
 # Running QEMU
 # echo "$qemu_command"
-eval "$qemu_command 2>&1 > /dev/null"
+eval "$qemu_command > /dev/null 2>&1"
 
 qemu_command="qemu-system-x86_64 -machine pc-q35-5.2 -enable-kvm $bios -cpu host -device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 -smp 4 -m 4096"
 for disk in "${hard_disks[@]}"; do
@@ -195,7 +195,7 @@ done
 
 # Running QEMU
 # echo "$qemu_command"
-eval "$qemu_command  2>&1 > /dev/null &"
+eval "$qemu_command   > /dev/null 2>&1 &"
 
 local bg_pid=$!
 
@@ -211,16 +211,16 @@ echo "Waiting for start SSH server on proxmox..."
 check_ssh_server || echo "Fatal: Proxmox may not have started properly because SSH on socket 127.0.0.1:5555 is not working."
 
 
-sshpass -p $password ssh-copy-id -p 5555 root@127.0.0.1
+sshpass -p $password ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1
 
-ssh 127.0.0.1 -p 5555 -o StrictHostKeyChecking=no -C exit
+ssh 127.0.0.1 -p 5555 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -C exit
 
 set_network
 
 
 disable_rpcbind
 install_iptables_rule
-ssh 127.0.0.1 -p 5555 -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null 127.0.0.1 -p 5555 -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'
 add_ssh_key_to_authorized_keys "$ssh_key"
 change_ssh_port
 
