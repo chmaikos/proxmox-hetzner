@@ -106,7 +106,7 @@ update_locale_gen() {
 
 
 set_network() {
-    curl -L "https://github.com/WMP/proxmox-hetzner/raw/main/files/main_vmbr0_basic_template.txt" -o ~/interfaces_sample
+    curl -L "https://github.com/chmaikos/proxmox-hetzner/raw/main/files/main_vmbr0_basic_template.txt" -o ~/interfaces_sample
     IFACE_NAME="$(udevadm info -e | grep -m1 -A 20 ^P.*eth0 | grep ID_NET_NAME_ONBOARD | cut -d'=' -f2)"
     MAIN_IPV4_CIDR="$(ip address show ${IFACE_NAME} | grep global | grep "inet "| xargs | cut -d" " -f2)"
     MAIN_IPV4_GW="$(ip route | grep default | xargs | cut -d" " -f3)"
@@ -120,7 +120,7 @@ set_network() {
     sed -i "s|#MAIN_IPV6_CIDR#|$MAIN_IPV6_CIDR|g" ~/interfaces_sample
 
     scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 ~/interfaces_sample root@127.0.0.1:/etc/network/interfaces
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 185.12.64.1\nnameserver  185.12.64.2\n' > /etc/resolv.conf"
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 8.8.8.8\nnameserver  1.1.1.1\n' > /etc/resolv.conf"
 }
 
 # Function to download the latest Proxmox ISO if not already downloaded
@@ -267,11 +267,11 @@ sshpass -p $password ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFi
 ssh 127.0.0.1 -p 5555 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -C exit
 
 set_network
-update_locale_gen
-register_acme_account
+# update_locale_gen
+# register_acme_account
 
 disable_rpcbind
-install_iptables_rule
+# install_iptables_rule
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null 127.0.0.1 -p 5555 -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'
 add_ssh_key_to_authorized_keys
 change_ssh_port
