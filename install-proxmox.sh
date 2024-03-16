@@ -120,7 +120,7 @@ set_network() {
     sed -i "s|#MAIN_IPV6_CIDR#|$MAIN_IPV6_CIDR|g" ~/interfaces_sample
 
     scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 ~/interfaces_sample root@127.0.0.1:/etc/network/interfaces
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 8.8.8.8\nnameserver  1.1.1.1\n' > /etc/resolv.conf"
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 1.1.1.1\nnameserver  1.0.0.1\n' > /etc/resolv.conf"
 }
 
 # Function to download the latest Proxmox ISO if not already downloaded
@@ -231,8 +231,8 @@ for disk in "${hard_disks[@]}"; do
 done
 
 # Running QEMU
-echo "$qemu_command"
-eval "$qemu_command"
+# echo "$qemu_command"
+eval "$qemu_command > /dev/null 2>&1"
 
 qemu_command="qemu-system-x86_64 -machine pc-q35-5.2 -enable-kvm $bios -cpu host -device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 -smp 4 -m 4096"
 for disk in "${hard_disks[@]}"; do
@@ -240,8 +240,8 @@ for disk in "${hard_disks[@]}"; do
 done
 
 # Running QEMU
-echo "$qemu_command"
-eval "$qemu_command"
+# echo "$qemu_command"
+eval "$qemu_command   > /dev/null 2>&1 &"
 
 bg_pid=$!
 
@@ -255,8 +255,7 @@ apt install sshpass
 
 echo "Waiting for start SSH server on proxmox..."
 check_ssh_server || echo "Fatal: Proxmox may not have started properly because SSH on socket 127.0.0.1:5555 is not working."
-sshpass -p $password
-ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1
+sshpass -p $password ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1
 
 ssh 127.0.0.1 -p 5555 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -C exit
 
