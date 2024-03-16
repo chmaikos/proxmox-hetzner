@@ -54,7 +54,7 @@ add_ssh_key_to_authorized_keys() {
     if [ -n "$ssh_key" ]; then
         if [ -f "$ssh_key" ]; then
             # Copy SSH key to local host via scp
-            scp -P 5555 "$ssh_key" root@127.0.0.1:/root/.ssh/authorized_keys
+            ssh-copy-id -i "$ssh_key"  -p 5555 root@127.0.0.1 
             echo "Added SSH public key to authorized_keys"
 
             # Disable password authentication for SSH
