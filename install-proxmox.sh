@@ -1,4 +1,4 @@
-#!/bin/bash
+ #!/bin/bash
 
 #!/bin/bash
 
@@ -23,16 +23,16 @@ show_help() {
 describe_plugin() {
     case $1 in
         "run_tteck_post-pve-install")
-            echo "Run additional post-installation tasks specific to Tteck environment"
+            echo "Run additional post-installation tasks from https://tteck.github.io/Proxmox/"
             ;;
         "set_network")
-            echo "Configure network settings"
+            echo "Configure network settings based on Hetzner rescure network"
             ;;
         "update_locale_gen")
-            echo "Update locale settings"
+            echo "Update locale settings with your ssh_client LC_NAME: ${LC_NAME}"
             ;;
         "register_acme_account")
-            echo "Register ACME account for Let's Encrypt"
+            echo "Get Let's Encrypt certificate for hostname set in Proxmox installer"
             ;;
         "disable_rpcbind")
             echo "Disable rpcbind service"
@@ -41,7 +41,7 @@ describe_plugin() {
             echo "Install custom iptables rule"
             ;;
         "add_ssh_key_to_authorized_keys")
-            echo "Add SSH public key to authorized_keys file"
+            echo "Add SSH public key to authorized_keys file and disable ssh only password login"
             ;;
         "change_ssh_port")
             echo "Change default SSH port"
