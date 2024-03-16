@@ -89,7 +89,7 @@ download_latest_proxmox_iso() {
     fi
 
     # Downloading the latest ISO file
-    curl -o "$latest_iso_name" "$ISO_URL/$latest_iso_name"
+    curl --remove-on-error -o "$latest_iso_name" "$ISO_URL/$latest_iso_name"
 
     if [ $? -eq 0 ]; then
         echo "Downloaded the latest ISO image: $latest_iso_name"
