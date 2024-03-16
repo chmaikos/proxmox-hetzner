@@ -68,7 +68,7 @@ set_network() {
     sed -i "s|#MAIN_IPV6_CIDR#|$MAIN_IPV6_CIDR|g" ~/interfaces_sample
 
     scp -P 5555 ~/interfaces_sample root@127.0.0.1:/etc/network/interfaces
-    ssh -p 5555 127.0.0.1 "printf 'nameserver 185.12.64.1\nnameserver  185.12.64.2\n" > /etc/resolv.conf
+    ssh -p 5555 127.0.0.1 "printf 'nameserver 185.12.64.1\nnameserver  185.12.64.2\n' > /etc/resolv.conf"
 }
 
 # Function to download the latest Proxmox ISO if not already downloaded
