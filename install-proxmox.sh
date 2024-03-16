@@ -53,11 +53,11 @@ add_ssh_key_to_authorized_keys() {
     if [ -n "$ssh_key" ]; then
         if [ -f "$ssh_key" ]; then
             # Copy SSH key to local host via scp
-            ssh-copy-id  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$ssh_key"  -p 5555 root@127.0.0.1 
+            ssh-copy-id -f -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$ssh_key"  -p 5555 root@127.0.0.1  2>&1  | grep -v 'Warning: Permanently added '
             echo "Added SSH public key to authorized_keys"
 
             # Disable password authentication for SSH
-            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "sed -i 's/^PasswordAuthentication yes$/PasswordAuthentication no/' /etc/ssh/sshd_config"
+            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "sed -i 's/^PasswordAuthentication yes$/PasswordAuthentication no/' /etc/ssh/sshd_config"  2>&1  | grep -v 'Warning: Permanently added '
             echo "Password authentication disabled for SSH"
         else
             echo "Error: File '$ssh_key' does not exist."
@@ -68,24 +68,26 @@ add_ssh_key_to_authorized_keys() {
 
 change_ssh_port() {
     if [ -n "$ssh_port" ]; then
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "sed -i 's/^#Port.*$/Port $ssh_port/' /etc/ssh/sshd_config"
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "echo 'Port $ssh_port' > /root/.ssh/config"
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "sed -i 's/^#Port.*$/Port $ssh_port/' /etc/ssh/sshd_config"  2>&1  | grep -v 'Warning: Permanently added '
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "echo 'Port $ssh_port' > /root/.ssh/config"  2>&1  | grep -v 'Warning: Permanently added '
         echo "SSH port changed to $ssh_port on proxmox server."
     fi
 }
 
 disable_rpcbind() {
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "systemctl disable --now rpcbind rpcbind.socket"
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "systemctl disable --now rpcbind rpcbind.socket"  2>&1  | grep -v 'Warning: Permanently added '
     echo "rpcbind disabled on proxmox server."
 }
 
 install_iptables_rule() {
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
         apt-get update &&
+        echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections &&
+        echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections &&
         apt-get install -y iptables-persistent &&
         iptables -I INPUT -i vmbr0 -p tcp -m tcp --dport 3128 -j DROP &&
         netfilter-persistent save
-    "
+    "  2>&1  | grep -v 'Warning: Permanently added '
 }
 
 update_locale_gen() {
@@ -95,7 +97,7 @@ update_locale_gen() {
             locale-gen
             echo \"Updated /etc/locale.gen and generated locales for \$LC_NAME\"
         fi
-    "
+    "  2>&1  | grep -v 'Warning: Permanently added '
 }
 
 
@@ -113,8 +115,8 @@ set_network() {
     sed -i "s|#MAIN_MAC_ADDR#|$MAIN_MAC_ADDR|g" ~/interfaces_sample
     sed -i "s|#MAIN_IPV6_CIDR#|$MAIN_IPV6_CIDR|g" ~/interfaces_sample
 
-    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 ~/interfaces_sample root@127.0.0.1:/etc/network/interfaces
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 185.12.64.1\nnameserver  185.12.64.2\n' > /etc/resolv.conf"
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 ~/interfaces_sample root@127.0.0.1:/etc/network/interfaces  2>&1  | grep -v 'Warning: Permanently added '
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 185.12.64.1\nnameserver  185.12.64.2\n' > /etc/resolv.conf"  2>&1  | grep -v 'Warning: Permanently added '
 }
 
 # Function to download the latest Proxmox ISO if not already downloaded
@@ -172,15 +174,14 @@ EOF
 
     chmod +x /root/acme_certificate_order_script.sh
 
-    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 /root/acme_certificate_order_script.sh 127.0.0.1:/root/acme_certificate_order_script.sh && ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 /root/acme_certificate_order_script.sh 127.0.0.1:/root/acme_certificate_order_script.sh  2>&1  | grep -v 'Warning: Permanently added ' && ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
         echo \"@reboot root /root/acme_certificate_order_script.sh\" > /etc/cron.d/acme_certificate_order_cron && \
         chmod 644 /etc/cron.d/acme_certificate_order_cron
-    "
+    "  2>&1  | grep -v 'Warning: Permanently added '
 }
 
 register_acme_account() {
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
-        bash -c 'hostname=$(hostname -f) && 
+    ssh -o CheckHostIP=no -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 " 
         apt install -y expect && 
         expect -c \"
             spawn pvenode acme account register default $acme_email --directory https://acme-v02.api.letsencrypt.org/directory
@@ -188,7 +189,7 @@ register_acme_account() {
             send \"y\\\r\"
             interact
         \" && pvenode config set --acme domains=$(hostname -f) && 
-    "
+    "  2>&1  | grep -v 'Warning: Permanently added '
     order_acme_certificate
 }
 
@@ -251,10 +252,10 @@ fi
 
 echo "Waiting for start SSH server on proxmox..."
 check_ssh_server || echo "Fatal: Proxmox may not have started properly because SSH on socket 127.0.0.1:5555 is not working."
-ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1
-ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -C exit
+ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1  2>&1  | grep -v 'Warning: Permanently added '
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -C exit  2>&1  | grep -v 'Warning: Permanently added '
 
-ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'  2>&1  | grep -v 'Warning: Permanently added '
 
 set_network
 update_locale_gen
