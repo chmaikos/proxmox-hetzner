@@ -323,10 +323,10 @@ hard_disks_text=()
 # Read disk information using lsblk and store it in the array
 while read -r line; do
     hard_disks_text+=("$line")
-done < <(lsblk -o NAME,SIZE,SERIAL,VENDOR,MODEL,PARTTYPE -d -n -p | grep -v 'loop')
+done < <(lsblk -o NAME,SIZE,SERIAL,VENDOR,MODEL,PARTTYPE -d -p | grep -v 'loop')
 
 # Add a column with device path /dev/vd*
-device_path="/dev/v"
+device_path="/dev/vd"
 counter=97  # ASCII code for 'a'
 for ((i = 0; i < ${#hard_disks_text[@]}; i++)); do
     if (( $counter > 122 )); then  # If ASCII code exceeds 'z'
@@ -339,6 +339,7 @@ for ((i = 0; i < ${#hard_disks_text[@]}; i++)); do
 done
 
 # Display the list of disks with the added device path
+echo "Disk mapping table:"
 for disk_info in "${hard_disks_text[@]}"; do
     echo "$disk_info"
 done
