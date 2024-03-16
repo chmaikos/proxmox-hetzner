@@ -1,6 +1,8 @@
- #!/bin/bash
-
 #!/bin/bash
+
+# Default variables
+skip_installer=false
+no_shutdown=false
 
 # Function to show help message
 show_help() {
@@ -11,6 +13,7 @@ show_help() {
     echo "  -k, --ssh-key SSH_KEY         Add SSH public key to authorized_keys"
     echo "  -e, --acme-email EMAIL        Set email for ACME account"
     echo "  --skip-installer              Skip Proxmox installer and boot directly from installed disks"
+    echo "  --no-shutdown                 Do not shut down the virtual machine after finishing work"
     echo "  --disable PLUGIN1,PLUGIN2     Disable specified plugins"
     echo "  -h, --help                    Show this help message and exit"
     echo ""
@@ -87,7 +90,7 @@ run_plugin() {
 }
 
 # Default list of plugins
-plugin_list="run_tteck_post-pve-install,set_network,update_locale_gen,register_acme_account,disable_rpcbind,install_iptables_rule,add_ssh_key_to_authorized_keys,change_ssh_port"
+plugin_list="update_locale_gen,run_tteck_post-pve-install,set_network,register_acme_account,disable_rpcbind,install_iptables_rule,add_ssh_key_to_authorized_keys,change_ssh_port"
 
 # Parsing command line options
 while [[ $# -gt 0 ]]; do
@@ -115,6 +118,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --skip-installer)
             skip_installer=true
+            shift
+            ;;
+        --no-shutdown)
+            no_shutdown=true
             shift
             ;;
         --disable)
@@ -343,6 +350,7 @@ echo "Disk mapping table:"
 for disk_info in "${hard_disks_text[@]}"; do
     echo "$disk_info"
 done
+echo
 
 
 
@@ -351,7 +359,7 @@ while read -r line; do
     hard_disks+=("$line")
 done < <(lsblk -o NAME -d -n -p | grep -v 'loop')
 
-if [ ! -n "$skip_installer" ]; then
+if [ "$skip_installer" = false ]; then
     # Building QEMU command with detected hard disks
     qemu_command="printf \"change vnc password\n%s\n\" $vnc_password | qemu-system-x86_64 -machine pc-q35-5.2 -enable-kvm $bios -cpu host -smp 4 -m 4096 -boot d -cdrom $latest_iso_name -vnc :0,password -monitor stdio -no-reboot"
     for disk in "${hard_disks[@]}"; do
@@ -383,6 +391,7 @@ fi
 
 echo "Waiting for start SSH server on proxmox..."
 check_ssh_server || echo "Fatal: Proxmox may not have started properly because SSH on socket 127.0.0.1:5555 is not working."
+echo
 echo "Please enter the password for the root user that you set during the Proxmox installation."
 
 ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1  2>&1  | grep -v 'Warning: Permanently added '
@@ -395,4 +404,9 @@ for plugin in $(echo "$plugin_list" | tr ',' '\n'); do
     run_plugin "$plugin"
 done
 
-kill $bg_pid
+# Shut down the virtual machine if --no-shutdown option is not used
+if [ "$no_shutdown" = false ]; then
+    echo "Shutting down the virtual machine..."
+    kill $bg_pid
+fi
+
