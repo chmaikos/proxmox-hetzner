@@ -289,7 +289,7 @@ register_acme_account() {
             expect -re {Do you agree}
             send \"y\\\r\"
             interact
-        \" && pvenode config set --acme domains=$(hostname -f) && 
+        \" && pvenode config set --acme domains=\$(hostname -f) 
     "  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
     order_acme_certificate
 }
@@ -412,6 +412,6 @@ done
 # Shut down the virtual machine if --no-shutdown option is not used
 if [ "$no_shutdown" = false ]; then
     echo "Shutting down the virtual machine..."
-    kill $bg_pid
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "poweroff"
 fi
 
