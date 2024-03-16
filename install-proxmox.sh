@@ -107,7 +107,7 @@ update_locale_gen() {
 
 set_network() {
     curl -L "https://github.com/chmaikos/proxmox-hetzner/raw/main/files/main_vmbr0_basic_template.txt" -o ~/interfaces_sample
-    IFACE_NAME="$(udevadm info -e | grep -m1 -A 20 ^P.*eth0 | grep ID_NET_NAME_ONBOARD | cut -d'=' -f2)"
+    IFACE_NAME="$(udevadm info -e | grep -m1 -A 20 ^P.*eth0 | grep ID_NET_NAME_PATH | cut -d'=' -f2)"
     MAIN_IPV4_CIDR="$(ip address show ${IFACE_NAME} | grep global | grep "inet "| xargs | cut -d" " -f2)"
     MAIN_IPV4_GW="$(ip route | grep default | xargs | cut -d" " -f3)"
     MAIN_IPV6_CIDR="$(ip address show ${IFACE_NAME} | grep global | grep "inet6 "| xargs | cut -d" " -f2)"
@@ -200,15 +200,8 @@ register_acme_account() {
     order_acme_certificate
 }
 
-
-
-
-
 # Call the function to download the latest Proxmox ISO
 download_latest_proxmox_iso
-
-
-
 
 if [ ! -n "$vnc_password" ]; then
     # Generate random VNC password
@@ -238,8 +231,8 @@ for disk in "${hard_disks[@]}"; do
 done
 
 # Running QEMU
-# echo "$qemu_command"
-eval "$qemu_command > /dev/null 2>&1"
+echo "$qemu_command"
+eval "$qemu_command"
 
 qemu_command="qemu-system-x86_64 -machine pc-q35-5.2 -enable-kvm $bios -cpu host -device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 -smp 4 -m 4096"
 for disk in "${hard_disks[@]}"; do
@@ -247,8 +240,8 @@ for disk in "${hard_disks[@]}"; do
 done
 
 # Running QEMU
-# echo "$qemu_command"
-eval "$qemu_command   > /dev/null 2>&1 &"
+echo "$qemu_command"
+eval "$qemu_command"
 
 bg_pid=$!
 
@@ -262,7 +255,8 @@ apt install sshpass
 
 echo "Waiting for start SSH server on proxmox..."
 check_ssh_server || echo "Fatal: Proxmox may not have started properly because SSH on socket 127.0.0.1:5555 is not working."
-sshpass -p $password ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1
+sshpass -p $password
+ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1
 
 ssh 127.0.0.1 -p 5555 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -C exit
 
