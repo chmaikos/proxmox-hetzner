@@ -197,7 +197,7 @@ done
 # echo "$qemu_command"
 eval "$qemu_command   > /dev/null 2>&1 &"
 
-local bg_pid=$!
+bg_pid=$!
 
 # Performing SSH operations
 if [ ! -f /root/.ssh/id_rsa ]; then
