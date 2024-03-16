@@ -178,9 +178,7 @@ EOF
 
     chmod +x /root/acme_certificate_order_script.sh
 
-    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 /root/acme_certificate_order_script.sh 127.0.0.1:/root/acme_certificate_order_script.sh && \
-
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 /root/acme_certificate_order_script.sh 127.0.0.1:/root/acme_certificate_order_script.sh && ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
         echo \"@reboot root /root/acme_certificate_order_script.sh\" > /etc/cron.d/acme_certificate_order_cron && \
         chmod 644 /etc/cron.d/acme_certificate_order_cron
     "
@@ -256,15 +254,13 @@ bg_pid=$!
 if [ ! -f /root/.ssh/id_rsa ]; then
     ssh-keygen -b 2048 -t rsa -f /root/.ssh/id_rsa -q -N ""
 fi
-apt install sshpass
-
-
 
 echo "Waiting for start SSH server on proxmox..."
 check_ssh_server || echo "Fatal: Proxmox may not have started properly because SSH on socket 127.0.0.1:5555 is not working."
-sshpass -p $password ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1
+ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -C exit
 
-ssh 127.0.0.1 -p 5555 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -C exit
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'
 
 set_network
 update_locale_gen
@@ -272,7 +268,7 @@ register_acme_account
 
 disable_rpcbind
 install_iptables_rule
-ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null 127.0.0.1 -p 5555 -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'
+
 add_ssh_key_to_authorized_keys
 change_ssh_port
 
