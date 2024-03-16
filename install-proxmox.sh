@@ -170,7 +170,7 @@ add_ssh_key_to_authorized_keys() {
 change_ssh_port() {
     if [ -n "$ssh_port" ]; then
         ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "sed -i 's/^#Port.*$/Port $ssh_port/' /etc/ssh/sshd_config"  2>&1  | grep -v 'Warning: Permanently added '
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "echo 'Port $ssh_port' > /root/.ssh/config"  2>&1  | grep -v 'Warning: Permanently added '
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "echo 'Port $ssh_port' >> /root/.ssh/config"  2>&1  | grep -v 'Warning: Permanently added '
         echo "SSH port changed to $ssh_port on proxmox server."
     fi
 }
@@ -198,6 +198,7 @@ update_locale_gen() {
             locale-gen
             echo \"Updated /etc/locale.gen and generated locales for \$LC_NAME\"
         fi
+        update-locale LANG=\$LC_NAME
     "  2>&1  | grep -v 'Warning: Permanently added '
 }
 
@@ -328,7 +329,12 @@ fi
 hard_disks_text=()
 
 # Read disk information using lsblk and store it in the array
+first_line=true
 while read -r line; do
+    if $first_line; then
+        first_line=false
+        continue
+    fi
     hard_disks_text+=("$line")
 done < <(lsblk -o NAME,SIZE,SERIAL,VENDOR,MODEL,PARTTYPE -d -p | grep -v 'loop')
 
