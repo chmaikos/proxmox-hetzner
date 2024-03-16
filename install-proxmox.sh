@@ -51,8 +51,7 @@ install_iptables_rule() {
     "
 }
 
-# Wywołanie funkcji
-install_iptables_rule
+
 
 set_network() {
     curl -L "https://github.com/WMP/proxmox-hetzner/raw/main/files/main_vmbr0_basic_template.txt" -o ~/interfaces_sample
