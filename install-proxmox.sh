@@ -37,6 +37,23 @@ change_ssh_port() {
     fi
 }
 
+disable_rpcbind() {
+    ssh -p 5555 root@127.0.0.1 "systemctl disable --now rpcbind rpcbind.socket"
+    echo "rpcbind disabled on proxmox server."
+}
+
+install_iptables_rule() {
+    ssh -p 5555 127.0.0.1 "
+        sudo apt-get update &&
+        sudo apt-get install -y iptables-persistent &&
+        sudo iptables -I INPUT -d vmbr0 -p tcp -m tcp --dport 3128 -j DROP &&
+        sudo netfilter-persistent save
+    "
+}
+
+# Wywołanie funkcji
+install_iptables_rule
+
 set_network() {
     curl -L "https://github.com/WMP/proxmox-hetzner/raw/main/files/main_vmbr0_basic_template.txt" -o ~/interfaces_sample
     IFACE_NAME="$(udevadm info -e | grep -m1 -A 20 ^P.*eth0 | grep ID_NET_NAME_ONBOARD | cut -d'=' -f2)"
@@ -49,7 +66,7 @@ set_network() {
     sed -i "s|#MAIN_IPV4_CIDR#|$MAIN_IPV4_CIDR|g" ~/interfaces_sample
     sed -i "s|#MAIN_IPV4_GW#|$MAIN_IPV4_GW|g" ~/interfaces_sample
     sed -i "s|#MAIN_MAC_ADDR#|$MAIN_MAC_ADDR|g" ~/interfaces_sample
-    sed -i "s|#MAIN_IPV6_CIDR#|$MAIN_IPV6_CIDR|g" ~/interfaces_sampleW
+    sed -i "s|#MAIN_IPV6_CIDR#|$MAIN_IPV6_CIDR|g" ~/interfaces_sample
 
     scp -P 5555 ~/interfaces_sample root@127.0.0.1:/etc/network/interfaces
 }
@@ -207,6 +224,9 @@ change_ssh_port
 
 # Call the function to add SSH public key to authorized_keys
 add_ssh_key_to_authorized_keys "$ssh_key"
+disable_rpcbind
+install_iptables_rule
+
 
 ssh 127.0.0.1 -p 5555 -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'
 
