@@ -283,7 +283,7 @@ EOF
 
 register_acme_account() {
     ssh -o CheckHostIP=no -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 " 
-        apt install -y expect && 
+        apt update && apt install -y expect && 
         expect -c \"
             spawn pvenode acme account register default $acme_email --directory https://acme-v02.api.letsencrypt.org/directory
             expect -re {Do you agree}
