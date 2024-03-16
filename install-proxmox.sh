@@ -11,7 +11,7 @@ show_help() {
     echo "  -v, --vnc-password PASSWORD   Set VNC password"
     echo "  -P, --port PORT               Change default SSH port"
     echo "  -k, --ssh-key SSH_KEY         Add SSH public key to authorized_keys"
-    echo "  -e, --acme-email EMAIL        Set email for ACME account"
+    echo "  -e, --acme-email EMAIL        Set email for ACME account, required for register_acme_account plugin"
     echo "  --skip-installer              Skip Proxmox installer and boot directly from installed disks"
     echo "  --no-shutdown                 Do not shut down the virtual machine after finishing work"
     echo "  --disable PLUGIN1,PLUGIN2     Disable specified plugins"
