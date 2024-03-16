@@ -8,6 +8,7 @@ show_help() {
     echo "  -p, --password PASSWORD       Set ssh password for proxmox" 
     echo "  -P, --port PORT               Change default SSH port"
     echo "  -k, --ssh-key SSH_KEY         Add SSH public key to authorized_keys"
+    echo "  -e, --acme-email EMAIL        Set email for ACME account"
     echo "  -h, --help                    Show this help message and exit"
 }
 
@@ -35,6 +36,11 @@ while [[ $# -gt 0 ]]; do
             shift
             shift
             ;;
+        -e|--acme-email)
+            acme_email="$2"
+            shift
+            shift
+            ;;
         -h|--help)
             show_help
             exit 0
@@ -50,7 +56,6 @@ done
 
 # Function to add SSH public key to authorized_keys
 add_ssh_key_to_authorized_keys() {
-    local ssh_key="$1"
     if [ -n "$ssh_key" ]; then
         if [ -f "$ssh_key" ]; then
             # Copy SSH key to local host via scp
@@ -69,7 +74,8 @@ add_ssh_key_to_authorized_keys() {
 
 change_ssh_port() {
     if [ -n "$ssh_port" ]; then
-        ssh  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "sed -i 's/^#Port.*$/Port $ssh_port/' /etc/ssh/sshd_config"
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "sed -i 's/^#Port.*$/Port $ssh_port/' /etc/ssh/sshd_config"
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "echo 'Port $ssh_port' > /root/.ssh/config"
         echo "SSH port changed to $ssh_port on proxmox server."
     fi
 }
@@ -80,14 +86,23 @@ disable_rpcbind() {
 }
 
 install_iptables_rule() {
-    ssh  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
         apt-get update &&
         apt-get install -y iptables-persistent &&
-        iptables -I INPUT -d vmbr0 -p tcp -m tcp --dport 3128 -j DROP &&
+        iptables -I INPUT -i vmbr0 -p tcp -m tcp --dport 3128 -j DROP &&
         netfilter-persistent save
     "
 }
 
+update_locale_gen() {
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
+        if grep -q \"^# *\$LC_NAME\" /etc/locale.gen; then
+            sed -i \"s/^# *\$LC_NAME/\$LC_NAME/\" /etc/locale.gen
+            locale-gen
+            echo \"Updated /etc/locale.gen and generated locales for \$LC_NAME\"
+        fi
+    "
+}
 
 
 set_network() {
@@ -151,6 +166,44 @@ check_ssh_server() {
     return 1
 }
 
+order_acme_certificate() {
+    cat <<EOF > /root/acme_certificate_order_script.sh
+#!/bin/bash
+
+pvenode acme cert order
+
+rm "/root/acme_certificate_order_script.sh"
+rm "/etc/cron.d/acme_certificate_order_cron"
+EOF
+
+    chmod +x /root/acme_certificate_order_script.sh
+
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 /root/acme_certificate_order_script.sh 127.0.0.1:/root/acme_certificate_order_script.sh && \
+
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
+        echo \"@reboot root /root/acme_certificate_order_script.sh\" > /etc/cron.d/acme_certificate_order_cron && \
+        chmod 644 /etc/cron.d/acme_certificate_order_cron
+    "
+}
+
+register_acme_account() {
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
+        bash -c 'hostname=$(hostname -f) && 
+        apt install -y expect && 
+        expect -c \"
+            spawn pvenode acme account register default $acme_email --directory https://acme-v02.api.letsencrypt.org/directory
+            expect -re {Do you agree}
+            send \"y\\\r\"
+            interact
+        \" && pvenode config set --acme domains=$(hostname -f) && 
+    "
+    order_acme_certificate
+}
+
+
+
+
+
 # Call the function to download the latest Proxmox ISO
 download_latest_proxmox_iso
 
@@ -209,19 +262,18 @@ apt install sshpass
 
 echo "Waiting for start SSH server on proxmox..."
 check_ssh_server || echo "Fatal: Proxmox may not have started properly because SSH on socket 127.0.0.1:5555 is not working."
-
-
 sshpass -p $password ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1
 
 ssh 127.0.0.1 -p 5555 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -C exit
 
 set_network
-
+update_locale_gen
+register_acme_account
 
 disable_rpcbind
 install_iptables_rule
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null 127.0.0.1 -p 5555 -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'
-add_ssh_key_to_authorized_keys "$ssh_key"
+add_ssh_key_to_authorized_keys
 change_ssh_port
 
 kill $bg_pid
