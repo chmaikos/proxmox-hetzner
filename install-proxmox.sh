@@ -154,11 +154,11 @@ add_ssh_key_to_authorized_keys() {
     if [ -n "$ssh_key" ]; then
         if [ -f "$ssh_key" ]; then
             # Copy SSH key to local host via scp
-            ssh-copy-id -f -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$ssh_key"  -p 5555 root@127.0.0.1  2>&1  | grep -v 'Warning: Permanently added '
+            ssh-copy-id -f -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$ssh_key"  -p 5555 root@127.0.0.1  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
             echo "Added SSH public key to authorized_keys"
 
             # Disable password authentication for SSH
-            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "sed -i 's/^PasswordAuthentication yes$/PasswordAuthentication no/' /etc/ssh/sshd_config"  2>&1  | grep -v 'Warning: Permanently added '
+            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "sed -i 's/^PasswordAuthentication yes$/PasswordAuthentication no/' /etc/ssh/sshd_config"  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
             echo "Password authentication disabled for SSH"
         else
             echo "Error: File '$ssh_key' does not exist."
@@ -169,14 +169,14 @@ add_ssh_key_to_authorized_keys() {
 
 change_ssh_port() {
     if [ -n "$ssh_port" ]; then
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "sed -i 's/^#Port.*$/Port $ssh_port/' /etc/ssh/sshd_config"  2>&1  | grep -v 'Warning: Permanently added '
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "echo 'Port $ssh_port' >> /root/.ssh/config"  2>&1  | grep -v 'Warning: Permanently added '
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "sed -i 's/^#Port.*$/Port $ssh_port/' /etc/ssh/sshd_config"  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "echo 'Port $ssh_port' >> /root/.ssh/config"  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
         echo "SSH port changed to $ssh_port on proxmox server."
     fi
 }
 
 disable_rpcbind() {
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "systemctl disable --now rpcbind rpcbind.socket"  2>&1  | grep -v 'Warning: Permanently added '
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "systemctl disable --now rpcbind rpcbind.socket"  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
     echo "rpcbind disabled on proxmox server."
 }
 
@@ -188,7 +188,7 @@ install_iptables_rule() {
         apt-get install -y iptables-persistent &&
         iptables -I INPUT -i vmbr0 -p tcp -m tcp --dport 3128 -j DROP &&
         netfilter-persistent save
-    "  2>&1  | grep -v 'Warning: Permanently added '
+    "  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 }
 
 update_locale_gen() {
@@ -198,9 +198,8 @@ update_locale_gen() {
             locale-gen
             echo \"Updated /etc/locale.gen and generated locales for \$LC_NAME\"
         fi
-        update-locale LANG=\$LC_NAME
-    "  2>&1  | grep -v 'Warning: Permanently added '
-}
+        update-locale LANG=en_US.UTF-8
+    "  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 
 
 set_network() {
@@ -217,8 +216,8 @@ set_network() {
     sed -i "s|#MAIN_MAC_ADDR#|$MAIN_MAC_ADDR|g" ~/interfaces_sample
     sed -i "s|#MAIN_IPV6_CIDR#|$MAIN_IPV6_CIDR|g" ~/interfaces_sample
 
-    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 ~/interfaces_sample root@127.0.0.1:/etc/network/interfaces  2>&1  | grep -v 'Warning: Permanently added '
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 185.12.64.1\nnameserver  185.12.64.2\n' > /etc/resolv.conf"  2>&1  | grep -v 'Warning: Permanently added '
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 ~/interfaces_sample root@127.0.0.1:/etc/network/interfaces  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 185.12.64.1\nnameserver  185.12.64.2\n' > /etc/resolv.conf"  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 }
 
 # Function to download the latest Proxmox ISO if not already downloaded
@@ -238,7 +237,7 @@ download_latest_proxmox_iso() {
         return
     fi
 
-    # Downloading the latest ISO file
+    echo "Downloading the latest ISO file"
     curl --remove-on-error -o "$latest_iso_name" "$ISO_URL/$latest_iso_name"
 
     if [ $? -eq 0 ]; then
@@ -276,10 +275,10 @@ EOF
 
     chmod +x /root/acme_certificate_order_script.sh
 
-    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 /root/acme_certificate_order_script.sh 127.0.0.1:/root/acme_certificate_order_script.sh  2>&1  | grep -v 'Warning: Permanently added ' && ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 /root/acme_certificate_order_script.sh 127.0.0.1:/root/acme_certificate_order_script.sh  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)' && ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
         echo \"@reboot root /root/acme_certificate_order_script.sh\" > /etc/cron.d/acme_certificate_order_cron && \
         chmod 644 /etc/cron.d/acme_certificate_order_cron
-    "  2>&1  | grep -v 'Warning: Permanently added '
+    "  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 }
 
 register_acme_account() {
@@ -291,7 +290,7 @@ register_acme_account() {
             send \"y\\\r\"
             interact
         \" && pvenode config set --acme domains=$(hostname -f) && 
-    "  2>&1  | grep -v 'Warning: Permanently added '
+    "  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
     order_acme_certificate
 }
 
@@ -400,8 +399,8 @@ check_ssh_server || echo "Fatal: Proxmox may not have started properly because S
 echo
 echo "Please enter the password for the root user that you set during the Proxmox installation."
 
-ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1  2>&1  | grep -v 'Warning: Permanently added '
-ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -C exit  2>&1  | grep -v 'Warning: Permanently added '
+ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -C exit  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 
 
 
