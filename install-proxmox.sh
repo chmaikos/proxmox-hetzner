@@ -215,21 +215,13 @@ sshpass -p $password ssh-copy-id -p 5555 root@127.0.0.1
 
 ssh 127.0.0.1 -p 5555 -o StrictHostKeyChecking=no -C exit
 
-
-
-
 set_network
 
 
-
-change_ssh_port
-
-# Call the function to add SSH public key to authorized_keys
-add_ssh_key_to_authorized_keys "$ssh_key"
 disable_rpcbind
 install_iptables_rule
-
-
 ssh 127.0.0.1 -p 5555 -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'
+add_ssh_key_to_authorized_keys "$ssh_key"
+change_ssh_port
 
 kill $bg_pid
