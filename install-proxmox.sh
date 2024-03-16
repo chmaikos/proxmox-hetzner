@@ -5,7 +5,6 @@ show_help() {
     echo "Usage: $0 [OPTIONS]"
     echo "OPTIONS:"
     echo "  -v, --vnc-password PASSWORD   Set VNC password"
-    echo "  -p, --password PASSWORD       Set ssh password for proxmox" 
     echo "  -P, --port PORT               Change default SSH port"
     echo "  -k, --ssh-key SSH_KEY         Add SSH public key to authorized_keys"
     echo "  -e, --acme-email EMAIL        Set email for ACME account"
@@ -18,11 +17,6 @@ while [[ $# -gt 0 ]]; do
     case $key in
         -v|--vnc-password)
             vnc_password="$2"
-            shift
-            shift
-            ;;
-        -p|--password)
-            password="$2"
             shift
             shift
             ;;
