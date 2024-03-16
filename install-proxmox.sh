@@ -11,6 +11,43 @@ show_help() {
     echo "  -h, --help                    Show this help message and exit"
 }
 
+# Parsing command line options
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+        -v|--vnc-password)
+            vnc_password="$2"
+            shift
+            shift
+            ;;
+        -p|--password)
+            password="$2"
+            shift
+            shift
+            ;;
+        -P|--port)
+            ssh_port="$2"
+            shift
+            shift
+            ;;
+        -k|--ssh-key)
+            ssh_key="$2"
+            shift
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+done
+
+
 # Function to add SSH public key to authorized_keys
 add_ssh_key_to_authorized_keys() {
     local ssh_key="$1"
@@ -117,41 +154,6 @@ check_ssh_server() {
 # Call the function to download the latest Proxmox ISO
 download_latest_proxmox_iso
 
-# Parsing command line options
-while [[ $# -gt 0 ]]; do
-    key="$1"
-    case $key in
-        -v|--vnc-password)
-            vnc_password="$2"
-            shift
-            shift
-            ;;
-        -p|--password)
-            password="$2"
-            shift
-            shift
-            ;;
-        -P|--port)
-            ssh_port="$2"
-            shift
-            shift
-            ;;
-        -k|--ssh-key)
-            ssh_key="$2"
-            shift
-            shift
-            ;;
-        -h|--help)
-            show_help
-            exit 0
-            ;;
-        *)
-            echo "Unknown option: $1"
-            show_help
-            exit 1
-            ;;
-    esac
-done
 
 
 
