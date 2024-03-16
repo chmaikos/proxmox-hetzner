@@ -334,7 +334,7 @@ for ((i = 0; i < ${#hard_disks_text[@]}; i++)); do
         break
     fi
     # Append device path to each disk entry
-    hard_disks_text[$i]="${hard_disks_text[$i]} $device_path$(printf "\x$(printf %x $counter)"))"
+    hard_disks_text[$i]="${hard_disks_text[$i]} $device_path$(printf "\x$(printf %x $counter)")"
     ((counter++))
 done
 
