@@ -183,7 +183,7 @@ for disk in "${hard_disks[@]}"; do
 done
 
 # Running QEMU
-echo "$qemu_command"
+# echo "$qemu_command"
 eval "$qemu_command"
 
 qemu_command="qemu-system-x86_64 -machine pc-q35-5.2 -enable-kvm $bios -cpu host -device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 -smp 4 -m 4096"
@@ -192,7 +192,7 @@ for disk in "${hard_disks[@]}"; do
 done
 
 # Running QEMU
-echo "$qemu_command"
+# echo "$qemu_command"
 eval "$qemu_command &"
 
 local bg_pid=$!
