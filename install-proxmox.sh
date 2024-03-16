@@ -268,14 +268,14 @@ order_acme_certificate() {
 sleep 30;
 pvenode acme cert order
 
-rm "/root/acme_certificate_order_script.sh"
 rm "/etc/cron.d/acme_certificate_order_cron"
+rm "/root/acme_certificate_order_script.sh"
 EOF
 
     chmod +x /root/acme_certificate_order_script.sh
 
     scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 /root/acme_certificate_order_script.sh 127.0.0.1:/root/acme_certificate_order_script.sh  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)' && ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "
-        echo \"@reboot root /root/acme_certificate_order_script.sh > /var/log/acme_certificate_order_script.log\" > /etc/cron.d/acme_certificate_order_cron && \
+        echo -e \"@reboot root /root/acme_certificate_order_script.sh > /var/log/acme_certificate_order_script.log\n\" > /etc/cron.d/acme_certificate_order_cron && \
         chmod 644 /etc/cron.d/acme_certificate_order_cron
     "  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 }
