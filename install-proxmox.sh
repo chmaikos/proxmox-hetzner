@@ -13,7 +13,7 @@ show_help() {
     echo "  --disable PLUGIN1,PLUGIN2     Disable specified plugins"
     echo "  -h, --help                    Show this help message and exit"
     echo ""
-    echo "Available plugins:"
+    echo "Available plugins (default enabled):"
     for plugin in $(echo "$plugin_list" | tr ',' '\n'); do
         echo "  $plugin: $(describe_plugin "$plugin")"
     done
