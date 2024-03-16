@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# Help function to display usage instructions
+#!/bin/bash
+
+# Function to show help message
 show_help() {
     echo "Usage: $0 [OPTIONS]"
     echo "OPTIONS:"
@@ -8,8 +10,83 @@ show_help() {
     echo "  -P, --port PORT               Change default SSH port"
     echo "  -k, --ssh-key SSH_KEY         Add SSH public key to authorized_keys"
     echo "  -e, --acme-email EMAIL        Set email for ACME account"
+    echo "  --disable PLUGIN1,PLUGIN2     Disable specified plugins"
     echo "  -h, --help                    Show this help message and exit"
+    echo ""
+    echo "Available plugins:"
+    for plugin in $(echo "$plugin_list" | tr ',' '\n'); do
+        echo "  $plugin: $(describe_plugin "$plugin")"
+    done
 }
+
+# Function to describe each plugin
+describe_plugin() {
+    case $1 in
+        "run_tteck_post-pve-install")
+            echo "Run additional post-installation tasks specific to Tteck environment"
+            ;;
+        "set_network")
+            echo "Configure network settings"
+            ;;
+        "update_locale_gen")
+            echo "Update locale settings"
+            ;;
+        "register_acme_account")
+            echo "Register ACME account for Let's Encrypt"
+            ;;
+        "disable_rpcbind")
+            echo "Disable rpcbind service"
+            ;;
+        "install_iptables_rule")
+            echo "Install custom iptables rule"
+            ;;
+        "add_ssh_key_to_authorized_keys")
+            echo "Add SSH public key to authorized_keys file"
+            ;;
+        "change_ssh_port")
+            echo "Change default SSH port"
+            ;;
+        *)
+            echo "No description available"
+            ;;
+    esac
+}
+
+# Function to run the specified plugin
+run_plugin() {
+    case $1 in
+        "run_tteck_post-pve-install")
+            run_tteck_post-pve-install
+            ;;
+        "set_network")
+            set_network
+            ;;
+        "update_locale_gen")
+            update_locale_gen
+            ;;
+        "register_acme_account")
+            register_acme_account
+            ;;
+        "disable_rpcbind")
+            disable_rpcbind
+            ;;
+        "install_iptables_rule")
+            install_iptables_rule
+            ;;
+        "add_ssh_key_to_authorized_keys")
+            add_ssh_key_to_authorized_keys
+            ;;
+        "change_ssh_port")
+            change_ssh_port
+            ;;
+        *)
+            echo "Unknown plugin: $1"
+            ;;
+    esac
+}
+
+# Default list of plugins
+plugin_list="run_tteck_post-pve-install,set_network,update_locale_gen,register_acme_account,disable_rpcbind,install_iptables_rule,add_ssh_key_to_authorized_keys,change_ssh_port"
 
 # Parsing command line options
 while [[ $# -gt 0 ]]; do
@@ -35,6 +112,15 @@ while [[ $# -gt 0 ]]; do
             shift
             shift
             ;;
+        --disable)
+            disabled_plugins="$2"
+            IFS=',' read -ra plugins_to_disable <<< "$disabled_plugins"
+            for plugin in "${plugins_to_disable[@]}"; do
+                plugin_list="${plugin_list//$plugin/}"
+            done
+            shift
+            shift
+            ;;
         -h|--help)
             show_help
             exit 0
@@ -46,6 +132,9 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+
+
 
 
 # Function to add SSH public key to authorized_keys
@@ -193,7 +282,9 @@ register_acme_account() {
     order_acme_certificate
 }
 
-
+run_tteck_post-pve-install() {
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'
+}
 
 
 
@@ -209,7 +300,7 @@ if [ ! -n "$vnc_password" ]; then
 fi
 echo
 echo "Connecto to VNC on port :5900 with password: $vnc_password"
-echo "If VNC stuck before open installator try to reconnect VNC client"
+echo "If VNC stuck before open installator, try to reconnect VNC client"
 echo
 
 # Detecting EFI/UEFI system
@@ -252,19 +343,16 @@ fi
 
 echo "Waiting for start SSH server on proxmox..."
 check_ssh_server || echo "Fatal: Proxmox may not have started properly because SSH on socket 127.0.0.1:5555 is not working."
+echo "Please enter the password for the root user that you set during the Proxmox installation."
+
 ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1  2>&1  | grep -v 'Warning: Permanently added '
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -C exit  2>&1  | grep -v 'Warning: Permanently added '
 
-ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -t  'bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"'
 
-set_network
-update_locale_gen
-register_acme_account
 
-disable_rpcbind
-install_iptables_rule
-
-add_ssh_key_to_authorized_keys
-change_ssh_port
+# Run enabled plugins
+for plugin in $(echo "$plugin_list" | tr ',' '\n'); do
+    run_plugin "$plugin"
+done
 
 kill $bg_pid
