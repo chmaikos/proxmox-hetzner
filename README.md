@@ -50,19 +50,6 @@ bash install-proxmox.sh --help
 
 After installer reboots QEMU, the script will automaticaly configure network vmbr0 for a bridged network. It will also run the [Post Install Script](https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)
 
-IPTABLES rules and ACME Cert creation are available (need to be enabled in installer). If you enable ACME make sure to pass an email with `-e, --acme-email EMAIL`
-
-- Reboot main `rescue` ssh:
-
-```shell
-reboot
-```
-
-- After a few minutes, login again to your proxmox server with ssh on port `22` or the port you gave the install script.
-- Make sure to change the hostname file to reflect your public ip from hetzner.
-
-After installer reboots QEMU, the script will automaticaly configure network vmbr0 for a bridged network. It will also run the [Post Install Script](https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)
-
 If you enable ACME make sure to pass an email with `-e, --acme-email EMAIL`
 
 - Reboot main `rescue` ssh:
