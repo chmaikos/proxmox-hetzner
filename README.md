@@ -1,12 +1,12 @@
 <p align="center">
-    <img src="https://github.com/ariadata/proxmox-hetzner/raw/main/files/icons/proxmox.png" alt="Proxmox" height="48" />
+    <img src="https://github.com/WMP/proxmox-hetzner/raw/main/files/icons/proxmox.png" alt="Proxmox" height="48" />
     </br>
-    <img src="https://github.com/ariadata/proxmox-hetzner/raw/main/files/icons/hetzner.png" alt="Hetzner" height="38" />
+    <img src="https://github.com/WMP/proxmox-hetzner/raw/main/files/icons/hetzner.png" alt="Hetzner" height="38" />
     </br>
     <a href="https://github.com/chmaikos/proxmox-hetzner">
-        <img src="https://img.shields.io/github/stars/chmaikos/proxmox-hetzner" alt="Stars"/>
-        <img src="https://img.shields.io/github/watchers/chmaikos/proxmox-hetzner" />
-        <img src="https://img.shields.io/github/forks/chmaikos/proxmox-hetzner" />
+        <img src="https://img.shields.io/github/stars/WMP/proxmox-hetzner" alt="Stars"/>
+        <img src="https://img.shields.io/github/watchers/WMP/proxmox-hetzner" />
+        <img src="https://img.shields.io/github/forks/WMP/proxmox-hetzner" />
     </a>
 </p>
 
@@ -38,8 +38,8 @@
 ### Install requirements and Install Proxmox
 
 ```shell
-wget https://github.com/chmaikos/proxmox-hetzner/raw/main/install-proxmox.sh
-bash install-proxmox.sh -p prox_password
+wget https://github.com/WMP/proxmox-hetzner/raw/main/install-proxmox.sh
+bash install-proxmox.sh --help
 ```
 
 - Install Proxmox and attention to these :
@@ -133,5 +133,4 @@ update-initramfs -u
 #### Special Thanks
 
 [Ariadata](https://github.com/ariadata)
-[WMP](https://github.com/WMP)
 [Tteck](https://tteck.github.io/Proxmox/)

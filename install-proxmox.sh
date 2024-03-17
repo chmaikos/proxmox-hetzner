@@ -216,7 +216,7 @@ set_network() {
     sed -i "s|#MAIN_IPV6_CIDR#|$MAIN_IPV6_CIDR|g" ~/interfaces_sample
 
     scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 ~/interfaces_sample root@127.0.0.1:/etc/network/interfaces  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 185.12.64.1\nnameserver  185.12.64.2\n' > /etc/resolv.conf"  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 1.1.1.1\nnameserver  1.0.0.1\n' > /etc/resolv.conf"  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 }
 
 # Function to download the latest Proxmox ISO if not already downloaded
@@ -302,9 +302,6 @@ run_tteck_post-pve-install() {
 # Call the function to download the latest Proxmox ISO
 download_latest_proxmox_iso
 
-
-
-
 if [ ! -n "$vnc_password" ]; then
     # Generate random VNC password
     vnc_password=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
@@ -320,8 +317,6 @@ if [ -d "/sys/firmware/efi" ]; then
 else
     bios=""
 fi
-
-
 
 # Array to store disk information as text
 hard_disks_text=()
@@ -354,9 +349,6 @@ echo "Disk mapping table:"
 for disk_info in "${hard_disks_text[@]}"; do
     echo "$disk_info"
 done
-echo
-
-
 
 hard_disks=()
 while read -r line; do
@@ -374,8 +366,6 @@ if [ "$skip_installer" = false ]; then
     # echo "$qemu_command"
     eval "$qemu_command > /dev/null 2>&1"
 fi
-
-
 
 qemu_command="qemu-system-x86_64 -machine pc-q35-5.2 -enable-kvm $bios -cpu host -device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 -smp 4 -m 4096"
 for disk in "${hard_disks[@]}"; do
@@ -402,8 +392,6 @@ echo
 
 ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -C exit  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
-
-
 
 # Run enabled plugins
 for plugin in $(echo "$plugin_list" | tr ',' '\n'); do
