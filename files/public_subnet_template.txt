@@ -1,0 +1,6 @@
+auto vmbr2
+iface vmbr2 inet static
+    address #PUBLIC_CIDR#
+    bridge-ports none
+    bridge-stp off
+    bridge-fd 0
