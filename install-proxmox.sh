@@ -203,11 +203,43 @@ update_locale_gen() {
 
 set_network() {
     curl -L "https://github.com/WMP/proxmox-hetzner/raw/main/files/main_vmbr0_basic_template.txt" -o ~/interfaces_sample
-    IFACE_NAME="$(udevadm info -e | grep -m1 -A 20 ^P.*eth0 | grep ID_NET_NAME_PATH | cut -d'=' -f2)"
+
+    # Function to get network interface names
+    get_interface_names() {
+        local iface=$1
+        echo "$(udevadm info -e | grep -m1 -A20 "^P.*${iface}" | grep 'ID_NET_NAME_' | awk -F'=' '{print $2}')"
+    }
+
+    # Prompt user to choose the network interface
+    choose_interface() {
+        local interfaces=($(ls /sys/class/net | grep -v lo))
+        local choices=()
+        echo "Detected network interfaces:"
+        for iface in "${interfaces[@]}"; do
+            local names=( $(get_interface_names $iface) )
+            for name in "${names[@]}"; do
+                echo "$name - $iface"
+                choices+=("$name" "$iface")
+            done
+        done
+
+        echo "Please enter the name of the interface you wish to use for network configuration:"
+        read -r IFACE_NAME
+
+        # Verify IFACE_NAME is a valid choice
+        if [[ ! " ${choices[@]} " =~ " ${IFACE_NAME} " ]]; then
+            echo "Invalid interface name selected."
+            return 1
+        fi
+    }
+
+    choose_interface
+
+    # Continue with setting up the network using the chosen IFACE_NAME
     MAIN_IPV4_CIDR="$(ip address show ${IFACE_NAME} | grep global | grep "inet "| xargs | cut -d" " -f2)"
     MAIN_IPV4_GW="$(ip route | grep default | xargs | cut -d" " -f3)"
     MAIN_IPV6_CIDR="$(ip address show ${IFACE_NAME} | grep global | grep "inet6 "| xargs | cut -d" " -f2)"
-    MAIN_MAC_ADDR="$(ifconfig eth0 | grep -o -E '([[:xdigit:]]{1,2}:){5}[[:xdigit:]]{1,2}')"
+    MAIN_MAC_ADDR="$(cat /sys/class/net/${IFACE_NAME}/address)"
 
     sed -i "s|#IFACE_NAME#|$IFACE_NAME|g" ~/interfaces_sample
     sed -i "s|#MAIN_IPV4_CIDR#|$MAIN_IPV4_CIDR|g" ~/interfaces_sample
@@ -215,9 +247,22 @@ set_network() {
     sed -i "s|#MAIN_MAC_ADDR#|$MAIN_MAC_ADDR|g" ~/interfaces_sample
     sed -i "s|#MAIN_IPV6_CIDR#|$MAIN_IPV6_CIDR|g" ~/interfaces_sample
 
+    # Display the configuration for user verification
+    echo "The generated network configuration is as follows:"
+    cat ~/interfaces_sample
+    echo "Do you want to apply this configuration? (y/n)"
+    read -r user_confirmation
+    if [ "$user_confirmation" != "y" ]; then
+        echo "Network configuration aborted by user."
+        return 1
+    fi
+
+    # Apply the configuration
     scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 ~/interfaces_sample root@127.0.0.1:/etc/network/interfaces  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 1.1.1.1\nnameserver  1.0.0.1\n' > /etc/resolv.conf"  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 }
+
+
 
 # Function to download the latest Proxmox ISO if not already downloaded
 download_latest_proxmox_iso() {
