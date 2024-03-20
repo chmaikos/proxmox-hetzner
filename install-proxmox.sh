@@ -256,7 +256,7 @@ set_network() {
 
     # Apply the configuration
     scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 ~/interfaces_sample root@127.0.0.1:/etc/network/interfaces  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 185.12.64.1\nnameserver  185.12.64.1\n' > /etc/resolv.conf"  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 185.12.64.1\nnameserver  185.12.64.2\n' > /etc/resolv.conf"  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 }
 
 # Function to download the latest Proxmox ISO if not already downloaded
@@ -359,34 +359,34 @@ else
     bios=""
 fi
 
-# Array to store disk information as text
-hard_disks_text=()
-
-# Read disk information using lsblk and store it in the array
-first_line=true
-while read -r line; do
-    if $first_line; then
-        first_line=false
-        continue
-    fi
-    hard_disks_text+=("$line")
-done < <(lsblk -o NAME,SIZE,SERIAL,VENDOR,MODEL,PARTTYPE -d -p | grep -v 'loop')
-
-# Add a column with device path /dev/vd*
-device_path="/dev/vd"
-counter=97  # ASCII code for 'a'
-for ((i = 0; i < ${#hard_disks_text[@]}; i++)); do
-    if (( $counter > 122 )); then  # If ASCII code exceeds 'z'
-        echo "Too many disks to assign"
-        break
-    fi
-    # Append device path to each disk entry
-    hard_disks_text[$i]="${hard_disks_text[$i]} $device_path$(printf "\x$(printf %x $counter)")"
-    ((counter++))
-done
-
 # Display the list of disks with the added device path
 if [ "$verbose" = true ]; then
+    # Array to store disk information as text
+    hard_disks_text=()
+    
+    # Read disk information using lsblk and store it in the array
+    first_line=true
+    while read -r line; do
+        if $first_line; then
+            first_line=false
+            continue
+        fi
+        hard_disks_text+=("$line")
+    done < <(lsblk -o NAME,SIZE,SERIAL,VENDOR,MODEL,PARTTYPE -d -p | grep -v 'loop')
+    
+    # Add a column with device path /dev/vd*
+    device_path="/dev/vd"
+    counter=97  # ASCII code for 'a'
+    for ((i = 0; i < ${#hard_disks_text[@]}; i++)); do
+        if (( $counter > 122 )); then  # If ASCII code exceeds 'z'
+            echo "Too many disks to assign"
+            break
+        fi
+        # Append device path to each disk entry
+        hard_disks_text[$i]="${hard_disks_text[$i]} $device_path$(printf "\x$(printf %x $counter)")"
+        ((counter++))
+    done
+    
     echo "Disk mapping table:"
     for disk_info in "${hard_disks_text[@]}"; do
         echo "$disk_info"
@@ -408,8 +408,10 @@ if [ "$skip_installer" = false ]; then
     # Running QEMU
     if [ "$verbose" = true ]; then
         echo "$qemu_command"
-    fi
-    eval "$qemu_command > /dev/null 2>&1"
+        eval "$qemu_command"
+    else
+        eval "$qemu_command > /dev/null 2>&1"
+    fi    
 fi
 
 qemu_command="qemu-system-x86_64 -machine pc-q35-5.2 -enable-kvm $bios -cpu host -device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 -smp 4 -m 4096"
@@ -420,8 +422,10 @@ done
 # Running QEMU
 if [ "$verbose" = true ]; then
     echo "$qemu_command"
-fi
-eval "$qemu_command   > /dev/null 2>&1 &"
+    eval "$qemu_command &"
+else
+    eval "$qemu_command > /dev/null 2>&1 &"
+fi  
 
 bg_pid=$!
 
