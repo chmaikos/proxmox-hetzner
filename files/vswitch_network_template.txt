@@ -1,7 +1,0 @@
-auto vlan#VLAN_ID#
-iface vlan#VLAN_ID# inet static
-    address #VLAN_ADDRESS#
-    mtu 1400
-    vlan-raw-device vmbr0
-    up ip route add #VLAN_CIDR# via #VLAN_GW# dev vlan#VLAN_ID#
-    down ip route del #VLAN_CIDR# via #VLAN_GW# dev vlan#VLAN_ID#
