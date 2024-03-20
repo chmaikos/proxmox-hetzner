@@ -3,6 +3,8 @@
 # Default variables
 skip_installer=false
 no_shutdown=false
+verbose=false
+specified_iface_name=""
 
 # Function to show help message
 show_help() {
@@ -15,6 +17,9 @@ show_help() {
     echo "  --skip-installer              Skip Proxmox installer and boot directly from installed disks"
     echo "  --no-shutdown                 Do not shut down the virtual machine after finishing work"
     echo "  --disable PLUGIN1,PLUGIN2     Disable specified plugins"
+    echo "  --list-ifaces                 List network interfaces and exit"
+    echo "  --iface-name NAME             Specify the network interface name directly"
+    echo "  --verbose                     Enable extra log output"
     echo "  -h, --help                    Show this help message and exit"
     echo ""
     echo "Available plugins (default enabled):"
@@ -89,6 +94,15 @@ run_plugin() {
     esac
 }
 
+print_interface_names() {
+    for iface in $(ls /sys/class/net | grep -v lo); do
+        echo "Interface: $iface"
+        echo "$(udevadm info -e | grep -m1 -A20 "^P.*${iface}" | grep 'ID_NET_NAME_PATH' | awk -F'=' '{print "  " $1 ": " $2}')"
+        echo "$(udevadm info -e | grep -m1 -A20 "^P.*${iface}" | grep 'ID_NET_NAME_ONBOARD' | awk -F'=' '{print "  " $1 ": " $2}')"
+    done
+    exit 0
+}
+
 # Default list of plugins
 plugin_list="update_locale_gen,set_network,run_tteck_post-pve-install,register_acme_account,disable_rpcbind,install_iptables_rule,add_ssh_key_to_authorized_keys,change_ssh_port"
 
@@ -133,6 +147,19 @@ while [[ $# -gt 0 ]]; do
             shift
             shift
             ;;
+        --list-ifaces)
+            print_interface_names
+            exit 0
+            ;;
+        --iface-name)
+            specified_iface_name="$2"
+            shift
+            shift
+            ;;
+        --verbose)
+            verbose=true
+            shift
+            ;;
         -h|--help)
             show_help
             exit 0
@@ -145,9 +172,8 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-public_ipv4=$(ip -f inet addr show eth0 | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')
-
-
+WAN_IFACE=$(ip route show default | awk '/default/ {print $5}')
+PUBLIC_IPV4=$(ip -f inet addr show ${WAN_IFACE} | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')
 
 # Function to add SSH public key to authorized_keys
 add_ssh_key_to_authorized_keys() {
@@ -203,11 +229,18 @@ update_locale_gen() {
 
 set_network() {
     curl -L "https://github.com/WMP/proxmox-hetzner/raw/main/files/main_vmbr0_basic_template.txt" -o ~/interfaces_sample
-    IFACE_NAME="$(udevadm info -e | grep -m1 -A 20 ^P.*eth0 | grep ID_NET_NAME_ONBOARD | cut -d'=' -f2)"
+    
+    if [ "$specified_iface_name" ]; then
+        IFACE_NAME=$specified_iface_name
+    else
+        IFACE_NAME="$(udevadm info -e | grep -m1 -A 20 ^P.*${WAN_IFACE} | grep ID_NET_NAME_PATH | cut -d'=' -f2)"
+    fi
+
+    # Continue with setting up the network using the chosen IFACE_NAME
     MAIN_IPV4_CIDR="$(ip address show ${IFACE_NAME} | grep global | grep "inet "| xargs | cut -d" " -f2)"
     MAIN_IPV4_GW="$(ip route | grep default | xargs | cut -d" " -f3)"
     MAIN_IPV6_CIDR="$(ip address show ${IFACE_NAME} | grep global | grep "inet6 "| xargs | cut -d" " -f2)"
-    MAIN_MAC_ADDR="$(ifconfig eth0 | grep -o -E '([[:xdigit:]]{1,2}:){5}[[:xdigit:]]{1,2}')"
+    MAIN_MAC_ADDR="$(cat /sys/class/net/${WAN_IFACE}/address)"
 
     sed -i "s|#IFACE_NAME#|$IFACE_NAME|g" ~/interfaces_sample
     sed -i "s|#MAIN_IPV4_CIDR#|$MAIN_IPV4_CIDR|g" ~/interfaces_sample
@@ -215,8 +248,15 @@ set_network() {
     sed -i "s|#MAIN_MAC_ADDR#|$MAIN_MAC_ADDR|g" ~/interfaces_sample
     sed -i "s|#MAIN_IPV6_CIDR#|$MAIN_IPV6_CIDR|g" ~/interfaces_sample
 
+    # Display the configuration for user verification
+    if [ "$verbose" = true ]; then
+        echo "The generated network configuration is as follows:"
+        cat ~/interfaces_sample
+    fi
+
+    # Apply the configuration
     scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 5555 ~/interfaces_sample root@127.0.0.1:/etc/network/interfaces  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 185.12.64.1\nnameserver  185.12.64.2\n' > /etc/resolv.conf"  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1 "printf 'nameserver 185.12.64.1\nnameserver  185.12.64.1\n' > /etc/resolv.conf"  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 }
 
 # Function to download the latest Proxmox ISO if not already downloaded
@@ -298,19 +338,17 @@ run_tteck_post-pve-install() {
 }
 
 
+## EXECUTION ##
 
 # Call the function to download the latest Proxmox ISO
 download_latest_proxmox_iso
-
-
-
 
 if [ ! -n "$vnc_password" ]; then
     # Generate random VNC password
     vnc_password=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
 fi
 echo
-echo "Connecto to vnc://$public_ipv4:5900 with password: $vnc_password"
+echo "Connecto to vnc://$PUBLIC_IPV4:5900 with password: $vnc_password"
 echo "If VNC stuck before open installator, try to reconnect VNC client"
 echo
 
@@ -320,8 +358,6 @@ if [ -d "/sys/firmware/efi" ]; then
 else
     bios=""
 fi
-
-
 
 # Array to store disk information as text
 hard_disks_text=()
@@ -350,13 +386,12 @@ for ((i = 0; i < ${#hard_disks_text[@]}; i++)); do
 done
 
 # Display the list of disks with the added device path
-echo "Disk mapping table:"
-for disk_info in "${hard_disks_text[@]}"; do
-    echo "$disk_info"
-done
-echo
-
-
+if [ "$verbose" = true ]; then
+    echo "Disk mapping table:"
+    for disk_info in "${hard_disks_text[@]}"; do
+        echo "$disk_info"
+    done
+fi
 
 hard_disks=()
 while read -r line; do
@@ -371,11 +406,11 @@ if [ "$skip_installer" = false ]; then
     done
 
     # Running QEMU
-    # echo "$qemu_command"
+    if [ "$verbose" = true ]; then
+        echo "$qemu_command"
+    fi
     eval "$qemu_command > /dev/null 2>&1"
 fi
-
-
 
 qemu_command="qemu-system-x86_64 -machine pc-q35-5.2 -enable-kvm $bios -cpu host -device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 -smp 4 -m 4096"
 for disk in "${hard_disks[@]}"; do
@@ -383,7 +418,9 @@ for disk in "${hard_disks[@]}"; do
 done
 
 # Running QEMU
-# echo "$qemu_command"
+if [ "$verbose" = true ]; then
+    echo "$qemu_command"
+fi
 eval "$qemu_command   > /dev/null 2>&1 &"
 
 bg_pid=$!
@@ -403,8 +440,6 @@ echo
 ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 127.0.0.1  -C exit  2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 
-
-
 # Run enabled plugins
 for plugin in $(echo "$plugin_list" | tr ',' '\n'); do
     run_plugin "$plugin"
@@ -415,4 +450,3 @@ if [ "$no_shutdown" = false ]; then
     echo "Shutting down the virtual machine..."
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 5555 root@127.0.0.1 "poweroff" 2>&1  | egrep -v '(Warning: Permanently added |Connection to 127.0.0.1 closed)'
 fi
-
