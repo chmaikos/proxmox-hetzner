@@ -414,7 +414,7 @@ if [ "$skip_installer" = false ]; then
     fi    
 fi
 
-qemu_command="qemu-system-x86_64 -machine pc-q35-5.2 -enable-kvm $bios -cpu host -device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 -smp 4 -m 4096"
+qemu_command="qemu-system-x86_64 -display none -machine pc-q35-5.2 -enable-kvm $bios -cpu host -device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 -smp 4 -m 4096"
 for disk in "${hard_disks[@]}"; do
     qemu_command+=" -drive file=$disk,format=raw,media=disk,if=virtio"
 done
